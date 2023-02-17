@@ -8,6 +8,8 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.animation.Animation;
+import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -23,7 +25,9 @@ public class MusicPlayerActivity extends AppCompatActivity {
     ImageView pausePlay, nextBtn, previousBtn, musicIcon;
     ArrayList<AudioModel>songList;
     AudioModel currentSong;
+    int totalTime,position;
     MediaPlayer mediaPlayer=MyMediaPlayer.getInstance();
+    private Animation animation;
     int x=0;
 
     @Override
@@ -41,16 +45,18 @@ public class MusicPlayerActivity extends AppCompatActivity {
         musicIcon=findViewById(R.id.music_icon_big);
         titleTv.setSelected(true);
 
+        animation = AnimationUtils.loadAnimation(this,R.anim.slide_animation);
+        titleTv.setAnimation(animation);
         songList= (ArrayList<AudioModel>) getIntent().getSerializableExtra("LIST");
 
-        setResourcesWithMusic();
+//        setResourcesWithMusic();
         MusicPlayerActivity.this.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                Log.e("out", "run: out>>>>>>>>>>>>>>>>>>>>>>");
+
                 if(mediaPlayer!=null){
-                    Log.e("in", "run: in>>>>>>>>>>>>>>>>>>>");
-                    seekBar.setProgress(mediaPlayer.getCurrentPosition());
+
+               /*     seekBar.setProgress(mediaPlayer.getCurrentPosition());
                     currentTimeTv.setText(convertToMMSS(mediaPlayer.getCurrentPosition()+""));
 
                     if(mediaPlayer.isPlaying()){
@@ -60,10 +66,55 @@ public class MusicPlayerActivity extends AppCompatActivity {
                     }else{
                         pausePlay.setImageResource(R.drawable.baseline_play_circle_outline_24);
                         musicIcon.setRotation(0);
-                    }
+                    }       */
+                    musicIcon.setRotation(x++);
+                    int cP = mediaPlayer.getCurrentPosition();
+                    Log.e("cp : ",String.valueOf(cP));
+                    seekBar.setProgress(cP);
 
+                    String elapsedTime = createTimeLabel(cP);
+                    currentTimeTv.setText(elapsedTime);
+
+                    String lastTime = createTimeLabel(totalTime);
+                    totalTimeTv.setText(lastTime);
+                    mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                        @Override
+                        public void onCompletion(MediaPlayer mp) {
+
+                            mp.reset();
+
+                            if (position == songList.size()-1)
+                            {
+                                position = 0;
+                            }
+                            else
+                            {
+                                position++;
+                            }
+
+                            String newPath = String.valueOf(songList.get(position));
+
+                            try {
+                                mp.setDataSource(newPath);
+                                mp.prepare();
+                                mp.start();
+                                pausePlay.setImageResource(R.drawable.baseline_pause_circle_outline_24);
+                                titleTv.clearAnimation();
+                                titleTv.startAnimation(animation);
+
+
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+
+                            titleTv.setText(newPath.substring(newPath.lastIndexOf("/")+1));
+
+                        }
+                    });
+
+                    new Handler().postDelayed(this,100);
                 }
-                new Handler().postDelayed(this,100);
+
             }
         });
 
@@ -135,12 +186,33 @@ public class MusicPlayerActivity extends AppCompatActivity {
             mediaPlayer.start();
         }
     }
+
     // passing the string as convertToMMSS.getCurrentPosition()
-    public static String convertToMMSS (String duration){
+  public static String convertToMMSS (String duration){
         Long millis=Long.parseLong(duration);
         return  String.format("%02d:%02d",
                 TimeUnit.MILLISECONDS.toMinutes(millis)% TimeUnit.HOURS.toMinutes(1),
                 TimeUnit.MILLISECONDS.toSeconds(millis)% TimeUnit.MINUTES.toSeconds(millis));
+
+    }
+
+    public String createTimeLabel(int currentPosition)
+    {
+        String timeLabel;
+
+        int minute = currentPosition / 1000 / 60;
+        int second = currentPosition / 1000 % 60;
+
+        if (second < 10)
+        {
+            timeLabel = minute+":0"+second;
+        }
+        else
+        {
+            timeLabel = minute + ":" + second;
+        }
+
+        return timeLabel;
 
     }
 }
